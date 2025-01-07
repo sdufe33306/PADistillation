@@ -1,0 +1,59 @@
+# utils/attention.py
+
+import torch
+import torch.nn.functional as F
+
+def generate_spatial_attention(feature_map):
+    """
+    生成空间注意力图。
+
+    Args:
+        feature_map (torch.Tensor): 输入特征图，形状为 [C, H, W]。
+
+    Returns:
+        torch.Tensor: 空间注意力图，形状为 [1, H, W]。
+    """
+    spatial_attention = feature_map.abs().mean(dim=1, keepdim=True)  # [1, H, W]
+    return spatial_attention
+
+def generate_channel_attention(feature_map):
+    """
+    生成通道注意力图。
+
+    Args:
+        feature_map (torch.Tensor): 输入特征图，形状为 [C, H, W]。
+
+    Returns:
+        torch.Tensor: 通道注意力图，形状为 [C, 1, 1]。
+    """
+    channel_attention = feature_map.abs().mean(dim=(2, 3), keepdim=True)  # [C, 1, 1]
+    return channel_attention
+
+def normalize_attention(attention_map, temperature=1.0):
+    """
+    对注意力图进行归一化。
+
+    Args:
+        attention_map (torch.Tensor): 注意力图，形状为 [1, H, W] 或 [C, 1, 1]。
+        temperature (float): 温度参数。
+
+    Returns:
+        torch.Tensor: 归一化后的注意力图。
+    """
+    if attention_map.dim() == 4 and attention_map.size(1) == 1:
+        # 空间注意力图 [B, 1, H, W]
+        B, C, H, W = attention_map.size()
+        attention_map = attention_map.view(B, -1)  # [B, H*W]
+        normalized = F.softmax(attention_map / temperature, dim=1)
+        normalized = normalized.view(B, 1, H, W)  # [B, 1, H, W]
+    elif attention_map.dim() == 4 and attention_map.size(1) > 1 and attention_map.size(2) == 1 and attention_map.size(
+            3) == 1:
+        # 通道注意力图 [B, C, 1, 1]
+        B, C, H, W = attention_map.size()
+        attention_map = attention_map.view(B, C)  # [B, C]
+        normalized = F.softmax(attention_map / temperature, dim=1)
+        normalized = normalized.view(B, C, 1, 1)  # [B, C, 1, 1]
+    else:
+        raise ValueError(f"Unsupported attention map shape for normalization: {attention_map.shape}")
+
+    return normalized
