@@ -1,1 +1,24 @@
+# datasets.py
+
+import os
+from torch.utils.data import Dataset
+from torchvision import datasets, transforms
+from PIL import Image
+
+class UnlabeledDataset(Dataset):
+    def __init__(self, root, transform=None):
+        self.root = root
+        self.transform = transform
+        self.images = [os.path.join(root, img) for img in os.listdir(root)
+                       if os.path.isfile(os.path.join(root, img))]
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        image_path = self.images[idx]
+        image = Image.open(image_path).convert('L')  # 保证是单通道
+        if self.transform:
+            image = self.transform(image)
+        return image, str(image_path)  # 返回路径以便后续处理
 
